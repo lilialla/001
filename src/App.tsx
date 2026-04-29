@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { AppProvider, useApp } from './context/AppContext';
 import { Toaster } from 'react-hot-toast';
@@ -48,7 +48,7 @@ function Main() {
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <HashRouter>
       <AuthProvider>
         <AppProvider>
           <div className="mx-auto max-w-md w-full bg-[#FAF8F5] min-h-screen shadow-2xl overflow-x-hidden text-[#5C4E4E] font-sans border-x border-[#EFE8E0] flex flex-col">
@@ -57,6 +57,6 @@ export default function App() {
           </div>
         </AppProvider>
       </AuthProvider>
-    </BrowserRouter>
+    </HashRouter>
   );
 }

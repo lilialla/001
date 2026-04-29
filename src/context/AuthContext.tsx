@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../lib/firebase';
 import { getUserProfile, UserProfile } from '../lib/api';
+import { demoProfile, demoUser, SHOWCASE_MODE } from '../lib/demo';
 
 interface AuthContextType {
   user: User | null;
@@ -23,6 +24,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
+    if (SHOWCASE_MODE) {
+      setUser(demoUser);
+      setProfile(demoProfile);
+      setLoading(false);
+      return;
+    }
+
     const unsub = onAuthStateChanged(auth, async (u) => {
       setUser(u);
       if (u) {
