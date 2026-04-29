@@ -1,0 +1,53 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile",
+      "type": "object",
+      "properties": {
+        "displayName": { "type": "string" },
+        "email": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "timezone": { "type": "string" }
+      },
+      "required": ["email", "timezone"]
+    },
+    "Space": {
+      "title": "Space",
+      "description": "A shared space for a couple",
+      "type": "object",
+      "properties": {
+        "members": { "type": "array", "items": { "type": "string" } },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["members", "createdAt"]
+    },
+    "Event": {
+      "title": "Event",
+      "description": "An event on the timeline",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "startTime": { "type": "number", "description": "Unix timestamp in ms" },
+        "endTime": { "type": "number", "description": "Unix timestamp in ms" },
+        "userId": { "type": "string" },
+        "color": { "type": "string" }
+      },
+      "required": ["title", "startTime", "endTime", "userId", "color"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "User profiles"
+    },
+    "spaces/{spaceId}": {
+      "schema": { "$ref": "#/entities/Space" },
+      "description": "Shared spaces"
+    },
+    "spaces/{spaceId}/events/{eventId}": {
+      "schema": { "$ref": "#/entities/Event" },
+      "description": "Events in a shared space"
+    }
+  }
+}

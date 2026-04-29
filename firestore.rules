@@ -1,0 +1,95 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Primitives
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function isSignedIn() { return request.auth != null; }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+
+    // User Blueprints
+    function isValidUser(data) {
+      return data.keys().hasAll(['email', 'timezone']) &&
+             data.email is string && data.email.size() <= 256 &&
+             data.timezone is string && data.timezone.size() <= 64 &&
+             data.keys().hasAny(['displayName', 'photoURL']) == false || (
+               (!data.keys().hasAll(['displayName']) || (data.displayName is string && data.displayName.size() <= 128)) &&
+               (!data.keys().hasAll(['photoURL']) || (data.photoURL is string && data.photoURL.size() <= 2048))
+             );
+    }
+
+    // Space Blueprints
+    function isValidSpace(data) {
+      return data.keys().hasAll(['members', 'createdAt']) &&
+             data.members is list && data.members.size() > 0 && data.members.size() <= 2 &&
+             data.members[0] is string &&
+             data.createdAt is number;
+    }
+
+    // Event Blueprints
+    function isValidEvent(data) {
+      return data.keys().hasAll(['title', 'startTime', 'endTime', 'userId', 'color']) &&
+             data.keys().size() == 5 &&
+             data.title is string && data.title.size() <= 128 &&
+             data.startTime is number &&
+             data.endTime is number &&
+             data.userId is string && data.userId == request.auth.uid &&
+             data.color is string && data.color.size() <= 32;
+    }
+
+    // Users
+    match /users/{userId} {
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create: if isSignedIn() && request.auth.uid == userId && isValidId(userId) && isValidUser(incoming());
+      allow update: if isSignedIn() && request.auth.uid == userId && isValidId(userId) &&
+        (incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL', 'timezone', 'email']));
+    }
+
+    // Spaces
+    match /spaces/{spaceId} {
+      function isSpaceMember() {
+        return request.auth.uid in existing().members;
+      }
+      
+      function isJoinAction() {
+        let existingMembers = existing().members;
+        let newMembers = incoming().members;
+        return existingMembers.size() < 2 &&
+               newMembers.size() == existingMembers.size() + 1 &&
+               newMembers.hasAll(existingMembers) &&
+               request.auth.uid in newMembers;
+      }
+      
+      allow get: if isSignedIn() && isValidId(spaceId);
+      allow list: if isSignedIn() && request.auth.uid in resource.data.members;
+      
+      allow create: if isSignedIn() && isValidId(spaceId) && isValidSpace(incoming()) && request.auth.uid in incoming().members;
+      allow update: if isSignedIn() && isValidId(spaceId) && (isSpaceMember() || isJoinAction()) && 
+        incoming().diff(existing()).affectedKeys().hasOnly(['members']);
+    }
+
+    // Events
+    match /spaces/{spaceId}/events/{eventId} {
+      function getSpaceMembers() {
+        return get(/databases/$(database)/documents/spaces/$(spaceId)).data.members;
+      }
+      function canAccessSpace() {
+        return request.auth.uid in getSpaceMembers();
+      }
+
+      allow get: if isSignedIn() && isValidId(spaceId) && isValidId(eventId) && canAccessSpace();
+      allow list: if isSignedIn() && isValidId(spaceId) && canAccessSpace();
+
+      allow create: if isSignedIn() && isValidId(spaceId) && isValidId(eventId) && canAccessSpace() && isValidEvent(incoming());
+      allow update: if isSignedIn() && isValidId(spaceId) && isValidId(eventId) && canAccessSpace() &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['title', 'startTime', 'endTime', 'color']);
+      allow delete: if isSignedIn() && isValidId(spaceId) && isValidId(eventId) && canAccessSpace();
+    }
+  }
+}
